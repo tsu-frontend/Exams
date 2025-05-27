@@ -15,6 +15,4 @@ const getSum = (para1, para2) => {
 let result = getSum(number1, number2);
 
 console.log(`ორი რიცხვის ჯამი არის: ${result}`);
-let p = document.createElement("p");
-p.innerHTML = `ორი რიცხვის ჯამი არის: ${result}`;
-document.body.appendChild(p);
+document.write(`ორი რიცხვის ჯამი არის: ${result}`);
