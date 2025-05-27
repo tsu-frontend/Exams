@@ -1,0 +1,20 @@
+// 1. გამოაცხადეთ ფუნქცია getSum და ასევე ორი ცვლადი: number1, number2
+// 2. მიანიჭეთ ამ ცვლადებს რიცხვითი მნიშვნელობები;
+// 3. არითმეტიკული ოპერატორების გამოყენებით შეკრიბეთ ცვლადების
+// მნიშვნელობები;
+// 4. გამოტანის ოპერატორების მეშვეობით მიღებული შედეგი (ჯამი) დაბეჭდეთ
+// კონსოლსა და HTML დოკუმენტში.
+
+let number1 = 12;
+let number2 = 20;
+
+const getSum = (para1, para2) => {
+  return para1 + para2;
+};
+
+let result = getSum(number1, number2);
+
+console.log(`ორი რიცხვის ჯამი არის: ${result}`);
+let p = document.createElement("p");
+p.innerHTML = `ორი რიცხვის ჯამი არის: ${result}`;
+document.body.appendChild(p);
