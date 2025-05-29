@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="კა">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- <link rel="stylesheet" href="./script.js/" /> -->
+    <script src="script.js"></script>
+    <title>davaleba 2</title>
+  </head>
+  <body>
+    <h2>დაადგინეთ სრულწლოვანია თუ არა</h2>
+    <p id="ასაკის დადგენა"></p>
+
+    <h3>ლუწი რიცხვები</h3>
+    <ul id="output"></ul>
+    <script>
+      const output = document.getElementById("output");
+
+      //   ვიწყებთ 2-დან, რადგან პურველი ლუწი რიცხვი 2 არის
+      for (let i = 2; i <= 10; i += 2) {
+        let listItem = document.createElement("li"); // ვქმნით <li>
+        listItem.textContent = i;
+        output.appendChild(listItem);
+      }
+    </script>
+
+    <h3>input</h3>
+  <input type="text" id="myInput" placeholder="დაწერე ტექსტი">
+
+  <script>
+    const input = document.getElementById("myInput");
+
+    input.addEventListener('input', function() {
+      console.log("Input შეყვანილია:", input.value);
+    });
+  </script>
+
+    
+  </body>
+</html>
