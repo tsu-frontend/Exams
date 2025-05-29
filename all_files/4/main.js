@@ -1,6 +1,13 @@
 // part 1
 const date = new Date
+const today = date.getDay()
+const fullYear = date.getFullYear()
+const month = date.getMonth()
+
 console.log(date)
+console.log(today)
+console.log(fullYear)
+console.log(month)
 
 
 // part 2
