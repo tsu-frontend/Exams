@@ -26,9 +26,16 @@ jobs:
           mkdir -p ~/.config/rclone
           echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
 
+      - name: Verify rclone remotes
+        run: |
+          # Confirm that the remote name (e.g. 'gdrive') matches a section in your RCLONE_CONFIG secret
+          echo "Configured remotes:";
+          rclone listremotes
+
       - name: Ensure remote directory exists
         run: |
-          # Create the target folder on Google Drive if it doesn't exist
+          # Creates the target folder on the remote if it doesn't exist
+          # Replace 'gdrive' with your remote name if different
           rclone mkdir gdrive:github-uploaded-folders || true
 
       - name: Collect and upload all folders from all branches
@@ -57,5 +64,6 @@ jobs:
           done
 
           echo "Uploading to Google Drive..."
-          # 'copy' will create remote paths as needed
+          # 'copy' will create remote paths as needed under the given folder
+          # Replace 'gdrive' with your remote name if different
           rclone copy "$OUTPUT_DIR" gdrive:github-uploaded-folders
