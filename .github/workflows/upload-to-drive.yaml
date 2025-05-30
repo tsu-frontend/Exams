@@ -36,7 +36,7 @@ jobs:
         run: |
           # Creates the target folder on the remote if it doesn't exist
           # Replace 'gdrive' with your remote name if different
-          rclone mkdir gdrive:github-uploaded-folders || true
+          rclone mkdir tsu-frontend:github-uploaded-folders || true
 
       - name: Collect and upload all folders from all branches
         run: |
