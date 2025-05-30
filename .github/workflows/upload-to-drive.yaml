@@ -28,15 +28,13 @@ jobs:
 
       - name: Verify rclone remotes
         run: |
-          # Confirm that the remote name (e.g. 'gdrive') matches a section in your RCLONE_CONFIG secret
           echo "Configured remotes:";
           rclone listremotes
 
       - name: Ensure remote directory exists
         run: |
           # Creates the target folder on the remote if it doesn't exist
-          # Replace 'gdrive' with your remote name if different
-          rclone mkdir tsu-frontend:github-uploaded-folders || true
+          rclone mkdir tsu-frontend:javascript-exams || true
 
       - name: Collect and upload all folders from all branches
         run: |
@@ -65,5 +63,4 @@ jobs:
 
           echo "Uploading to Google Drive..."
           # 'copy' will create remote paths as needed under the given folder
-          # Replace 'gdrive' with your remote name if different
-          rclone copy "$OUTPUT_DIR" gdrive:github-uploaded-folders
+          rclone copy "$OUTPUT_DIR" tsu-frontend:javascript-exams
