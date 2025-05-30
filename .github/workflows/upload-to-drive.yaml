@@ -28,8 +28,17 @@ jobs:
       - name: Configure rclone
         run: |
           mkdir -p ~/.config/rclone
-          # Write the config file ensuring proper formatting
-          echo "${{ secrets.RCLONE_CONFIG }}" | tr -d '\n' > ~/.config/rclone/rclone.conf
+          # Write the config file with proper formatting
+          echo "[tsu-frontend]" > ~/.config/rclone/rclone.conf
+          echo "type = drive" >> ~/.config/rclone/rclone.conf
+          echo "scope = drive" >> ~/.config/rclone/rclone.conf
+          echo "token = ${{ secrets.RCLONE_TOKEN }}" >> ~/.config/rclone/rclone.conf
+          echo "team_drive = 0AB0RNCuKw3HUUk9PVA" >> ~/.config/rclone/rclone.conf
+
+          # Debug: Show the config file (without the token)
+          echo "Config file contents (without token):"
+          sed 's/token = .*/token = [REDACTED]/' ~/.config/rclone/rclone.conf
+
           # Validate the config file
           if ! rclone config file; then
             echo "Error: Invalid rclone configuration"
@@ -82,7 +91,7 @@ jobs:
         if: failure()
         run: |
           echo "--- ~/.config/rclone/rclone.conf ---"
-          cat ~/.config/rclone/rclone.conf
+          sed 's/token = .*/token = [REDACTED]/' ~/.config/rclone/rclone.conf
           echo "--- End of config file ---"
           echo "Checking rclone version and config:"
           rclone version
