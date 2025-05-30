@@ -3,6 +3,10 @@ name: Upload Folders to Google Drive
 on:
   workflow_dispatch:
 
+env:
+  REMOTE_NAME: tsu-frontend    # Change this to your rclone remote name
+  REMOTE_DIR: javascript-exams # Change this to your target folder name on Drive
+
 jobs:
   upload-folders:
     runs-on: ubuntu-latest
@@ -24,7 +28,8 @@ jobs:
       - name: Configure rclone
         run: |
           mkdir -p ~/.config/rclone
-          echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
+          # Write the full INI-style config; secrets.RCLONE_CONFIG must contain the entire rclone.conf contents
+          printf '%s' "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
 
       - name: Verify rclone remotes
         run: |
@@ -34,7 +39,7 @@ jobs:
       - name: Ensure remote directory exists
         run: |
           # Creates the target folder on the remote if it doesn't exist
-          rclone mkdir tsu-frontend:javascript-exams || true
+          rclone mkdir ${REMOTE_NAME}:${REMOTE_DIR} || true
 
       - name: Collect and upload all folders from all branches
         run: |
@@ -42,7 +47,6 @@ jobs:
           mkdir -p "$OUTPUT_DIR"
 
           for branch in $(git branch -r | grep -v '\->' | grep -v 'HEAD'); do
-            # Strip 'origin/' prefix
             CLEAN_BRANCH=${branch#origin/}
             echo "Checking out $CLEAN_BRANCH"
             git checkout -f "$CLEAN_BRANCH"
@@ -50,7 +54,7 @@ jobs:
             TARGET_DIR="$OUTPUT_DIR/$CLEAN_BRANCH"
             mkdir -p "$TARGET_DIR"
 
-            # Copy all root-level folders except .git and the output directory itself
+            # Copy root-level dirs except .git and the output dir
             for folder in $(find . -maxdepth 1 -type d \
                              ! -name '.' \
                              ! -name '.git' \
@@ -62,5 +66,10 @@ jobs:
           done
 
           echo "Uploading to Google Drive..."
-          # 'copy' will create remote paths as needed under the given folder
-          rclone copy "$OUTPUT_DIR" tsu-frontend:javascript-exams
+          rclone copy "$OUTPUT_DIR" ${REMOTE_NAME}:${REMOTE_DIR}
+
+      - name: Debug config snippet
+        if: failure()
+        run: |
+          echo "--- ~/.config/rclone/rclone.conf ---"
+          sed -n '1,30p' ~/.config/rclone/rclone.conf
