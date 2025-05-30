@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  DRIVE_FOLDER_ID: 1j2b_D_h-j1ys0Itm1VsOYyd5OzdtxFCg # Your Google Drive folder ID
+  DRIVE_FOLDER_ID: 0AB0RNCuKw3HUUk9PVA # Your Google Drive folder ID
 
 jobs:
   upload-folders:
