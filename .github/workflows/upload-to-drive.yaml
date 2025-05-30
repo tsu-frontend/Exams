@@ -28,8 +28,8 @@ jobs:
       - name: Configure rclone
         run: |
           mkdir -p ~/.config/rclone
-          # Write the full INI-style config; secrets.RCLONE_CONFIG must contain the entire rclone.conf contents
-          echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
+          # Write the config file ensuring proper formatting
+          echo "${{ secrets.RCLONE_CONFIG }}" | tr -d '\n' > ~/.config/rclone/rclone.conf
           # Validate the config file
           if ! rclone config file; then
             echo "Error: Invalid rclone configuration"
