@@ -26,13 +26,19 @@ jobs:
           mkdir -p ~/.config/rclone
           echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
 
+      - name: Ensure remote directory exists
+        run: |
+          # Create the target folder on Google Drive if it doesn't exist
+          rclone mkdir gdrive:github-uploaded-folders || true
+
       - name: Collect and upload all folders from all branches
         run: |
           OUTPUT_DIR="exams"
           mkdir -p "$OUTPUT_DIR"
 
           for branch in $(git branch -r | grep -v '\->' | grep -v 'HEAD'); do
-            CLEAN_BRANCH=$(echo "$branch" | sed 's#origin/##')
+            # Strip 'origin/' prefix
+            CLEAN_BRANCH=${branch#origin/}
             echo "Checking out $CLEAN_BRANCH"
             git checkout -f "$CLEAN_BRANCH"
 
@@ -41,8 +47,8 @@ jobs:
 
             # Copy all root-level folders except .git and the output directory itself
             for folder in $(find . -maxdepth 1 -type d \
-                             ! -name "." \
-                             ! -name ".git" \
+                             ! -name '.' \
+                             ! -name '.git' \
                              ! -name "$OUTPUT_DIR"); do
               folder_name=$(basename "$folder")
               echo "Copying folder $folder_name from $CLEAN_BRANCH"
@@ -51,4 +57,5 @@ jobs:
           done
 
           echo "Uploading to Google Drive..."
-          rclone copy "$OUTPUT_DIR" gdrive:github-uploaded-folders --create-dirs
+          # 'copy' will create remote paths as needed
+          rclone copy "$OUTPUT_DIR" gdrive:github-uploaded-folders
