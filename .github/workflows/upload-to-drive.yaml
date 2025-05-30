@@ -1,7 +1,7 @@
 name: Upload Folders to Google Drive
 
 on:
-  workflow_dispatch:  # manual trigger
+  workflow_dispatch:
 
 jobs:
   upload-folders:
@@ -11,7 +11,7 @@ jobs:
       - name: Checkout repository with all branches
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # get full history and all branches
+          fetch-depth: 0  # fetch full history and all branches
 
       - name: Install rclone
         run: |
@@ -29,21 +29,24 @@ jobs:
       - name: Collect and upload all folders from all branches
         run: |
           OUTPUT_DIR="exams"
-          mkdir -p $OUTPUT_DIR
+          mkdir -p "$OUTPUT_DIR"
 
           for branch in $(git branch -r | grep -v '\->' | grep -v 'HEAD'); do
-            CLEAN_BRANCH=$(echo $branch | sed 's#origin/##')
-
+            CLEAN_BRANCH=$(echo "$branch" | sed 's#origin/##')
             echo "Checking out $CLEAN_BRANCH"
-            git checkout -f $CLEAN_BRANCH
+            git checkout -f "$CLEAN_BRANCH"
 
-            mkdir -p "$OUTPUT_DIR/$CLEAN_BRANCH"
+            TARGET_DIR="$OUTPUT_DIR/$CLEAN_BRANCH"
+            mkdir -p "$TARGET_DIR"
 
-            # Find all root-level folders except .git and copy them with full contents
-            for folder in $(find . -maxdepth 1 -type d ! -name '.' ! -name '.git'); do
+            # Copy all root-level folders except .git and the output directory itself
+            for folder in $(find . -maxdepth 1 -type d \
+                             ! -name "." \
+                             ! -name ".git" \
+                             ! -name "$OUTPUT_DIR"); do
               folder_name=$(basename "$folder")
               echo "Copying folder $folder_name from $CLEAN_BRANCH"
-              cp -r "$folder" "$OUTPUT_DIR/$CLEAN_BRANCH/"
+              cp -r "$folder" "$TARGET_DIR/"
             done
           done
 
