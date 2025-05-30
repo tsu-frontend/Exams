@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  REMOTE_NAME: tsu-frontend # Change this to your rclone remote name
-  REMOTE_DIR: javascript-exams # Change this to your target folder name on Drive
+  DRIVE_FOLDER_ID: 0AB0RNCuKw3HUUk9PVA # Your Google Drive folder ID
 
 jobs:
   upload-folders:
@@ -17,82 +16,104 @@ jobs:
         with:
           fetch-depth: 0 # fetch full history and all branches
 
-      - name: Install rclone
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
         run: |
-          curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip
-          unzip rclone-current-linux-amd64.zip
-          cd rclone-*-linux-amd64
-          sudo cp rclone /usr/local/bin/
-          rclone version
+          python -m pip install --upgrade pip
+          pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
-      - name: Configure rclone
+      - name: Upload to Google Drive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          mkdir -p ~/.config/rclone
-          # Write the config file with proper formatting
-          echo "[tsu-frontend]" > ~/.config/rclone/rclone.conf
-          echo "type = drive" >> ~/.config/rclone/rclone.conf
-          echo "scope = drive" >> ~/.config/rclone/rclone.conf
-          echo "token = ${{ secrets.RCLONE_TOKEN }}" >> ~/.config/rclone/rclone.conf
-          echo "team_drive = 0AB0RNCuKw3HUUk9PVA" >> ~/.config/rclone/rclone.conf
+          python - <<EOF
+          import os
+          import json
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+          import base64
 
-          # Debug: Show the config file (without the token)
-          echo "Config file contents (without token):"
-          sed 's/token = .*/token = [REDACTED]/' ~/.config/rclone/rclone.conf
+          # Decode and write service account credentials
+          creds_json = base64.b64decode(os.environ['GOOGLE_APPLICATION_CREDENTIALS']).decode('utf-8')
+          with open('service-account.json', 'w') as f:
+              f.write(creds_json)
 
-          # Validate the config file
-          if ! rclone config file; then
-            echo "Error: Invalid rclone configuration"
-            exit 1
-          fi
+          # Set up credentials
+          credentials = service_account.Credentials.from_service_account_file(
+              'service-account.json',
+              scopes=['https://www.googleapis.com/auth/drive.file']
+          )
 
-      - name: Verify rclone remotes
+          # Build the Drive API service
+          service = build('drive', 'v3', credentials=credentials)
+
+          # Create output directory
+          OUTPUT_DIR = "exams"
+          os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+          # Process each branch
+          for branch in os.popen('git branch -r | grep -v "\\->" | grep -v "HEAD"').read().splitlines():
+              branch = branch.strip()
+              clean_branch = branch.replace('origin/', '')
+              print(f"Processing branch: {clean_branch}")
+              
+              # Checkout branch
+              os.system(f'git checkout -f "{clean_branch}"')
+              
+              # Create branch directory
+              target_dir = f"{OUTPUT_DIR}/{clean_branch}"
+              os.makedirs(target_dir, exist_ok=True)
+              
+              # Copy folders
+              for item in os.listdir('.'):
+                  if os.path.isdir(item) and item not in ['.git', OUTPUT_DIR]:
+                      print(f"Copying {item} from {clean_branch}")
+                      os.system(f'cp -r "{item}" "{target_dir}/"')
+
+          # Upload to Google Drive
+          def upload_folder(folder_path, parent_id):
+              # Create folder in Drive
+              folder_name = os.path.basename(folder_path)
+              folder_metadata = {
+                  'name': folder_name,
+                  'mimeType': 'application/vnd.google-apps.folder',
+                  'parents': [parent_id]
+              }
+              folder = service.files().create(
+                  body=folder_metadata,
+                  fields='id'
+              ).execute()
+              
+              # Upload contents
+              for item in os.listdir(folder_path):
+                  item_path = os.path.join(folder_path, item)
+                  if os.path.isdir(item_path):
+                      upload_folder(item_path, folder['id'])
+                  else:
+                      file_metadata = {
+                          'name': item,
+                          'parents': [folder['id']]
+                      }
+                      media = MediaFileUpload(
+                          item_path,
+                          resumable=True
+                      )
+                      service.files().create(
+                          body=file_metadata,
+                          media_body=media,
+                          fields='id'
+                      ).execute()
+
+          # Upload the exams directory
+          upload_folder(OUTPUT_DIR, os.environ['DRIVE_FOLDER_ID'])
+          EOF
+
+      - name: Cleanup
+        if: always()
         run: |
-          echo "Configured remotes:";
-          rclone listremotes
-          # Test the remote connection
-          if ! rclone lsd ${REMOTE_NAME}:; then
-            echo "Error: Could not connect to remote"
-            exit 1
-          fi
-
-      - name: Ensure remote directory exists
-        run: |
-          # Creates the target folder on the remote if it doesn't exist
-          rclone mkdir ${REMOTE_NAME}:${REMOTE_DIR} || true
-
-      - name: Collect and upload all folders from all branches
-        run: |
-          OUTPUT_DIR="exams"
-          mkdir -p "$OUTPUT_DIR"
-
-          for branch in $(git branch -r | grep -v '\->' | grep -v 'HEAD'); do
-            CLEAN_BRANCH=${branch#origin/}
-            echo "Checking out $CLEAN_BRANCH"
-            git checkout -f "$CLEAN_BRANCH"
-
-            TARGET_DIR="$OUTPUT_DIR/$CLEAN_BRANCH"
-            mkdir -p "$TARGET_DIR"
-
-            # Copy root-level dirs except .git and the output dir
-            for folder in $(find . -maxdepth 1 -type d \
-                             ! -name '.' \
-                             ! -name '.git' \
-                             ! -name "$OUTPUT_DIR"); do
-              folder_name=$(basename "$folder")
-              echo "Copying folder $folder_name from $CLEAN_BRANCH"
-              cp -r "$folder" "$TARGET_DIR/"
-            done
-          done
-
-          echo "Uploading to Google Drive..."
-          rclone copy "$OUTPUT_DIR" ${REMOTE_NAME}:${REMOTE_DIR}
-
-      - name: Debug config snippet
-        if: failure()
-        run: |
-          echo "--- ~/.config/rclone/rclone.conf ---"
-          sed 's/token = .*/token = [REDACTED]/' ~/.config/rclone/rclone.conf
-          echo "--- End of config file ---"
-          echo "Checking rclone version and config:"
-          rclone version
-          rclone config file
+          rm -f service-account.json
