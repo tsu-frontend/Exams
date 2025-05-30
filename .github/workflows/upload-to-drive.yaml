@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  REMOTE_NAME: tsu-frontend    # Change this to your rclone remote name
+  REMOTE_NAME: tsu-frontend # Change this to your rclone remote name
   REMOTE_DIR: javascript-exams # Change this to your target folder name on Drive
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository with all branches
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # fetch full history and all branches
+          fetch-depth: 0 # fetch full history and all branches
 
       - name: Install rclone
         run: |
@@ -29,12 +29,22 @@ jobs:
         run: |
           mkdir -p ~/.config/rclone
           # Write the full INI-style config; secrets.RCLONE_CONFIG must contain the entire rclone.conf contents
-          printf '%s' "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
+          echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
+          # Validate the config file
+          if ! rclone config file; then
+            echo "Error: Invalid rclone configuration"
+            exit 1
+          fi
 
       - name: Verify rclone remotes
         run: |
           echo "Configured remotes:";
           rclone listremotes
+          # Test the remote connection
+          if ! rclone lsd ${REMOTE_NAME}:; then
+            echo "Error: Could not connect to remote"
+            exit 1
+          fi
 
       - name: Ensure remote directory exists
         run: |
@@ -72,4 +82,8 @@ jobs:
         if: failure()
         run: |
           echo "--- ~/.config/rclone/rclone.conf ---"
-          sed -n '1,30p' ~/.config/rclone/rclone.conf
+          cat ~/.config/rclone/rclone.conf
+          echo "--- End of config file ---"
+          echo "Checking rclone version and config:"
+          rclone version
+          rclone config file
