@@ -1,0 +1,51 @@
+name: Upload Folders to Google Drive
+
+on:
+  workflow_dispatch:  # manual trigger
+
+jobs:
+  upload-folders:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository with all branches
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # get full history and all branches
+
+      - name: Install rclone
+        run: |
+          curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip
+          unzip rclone-current-linux-amd64.zip
+          cd rclone-*-linux-amd64
+          sudo cp rclone /usr/local/bin/
+          rclone version
+
+      - name: Configure rclone
+        run: |
+          mkdir -p ~/.config/rclone
+          echo "${{ secrets.RCLONE_CONFIG }}" > ~/.config/rclone/rclone.conf
+
+      - name: Collect and upload all folders from all branches
+        run: |
+          OUTPUT_DIR="exams"
+          mkdir -p $OUTPUT_DIR
+
+          for branch in $(git branch -r | grep -v '\->' | grep -v 'HEAD'); do
+            CLEAN_BRANCH=$(echo $branch | sed 's#origin/##')
+
+            echo "Checking out $CLEAN_BRANCH"
+            git checkout -f $CLEAN_BRANCH
+
+            mkdir -p "$OUTPUT_DIR/$CLEAN_BRANCH"
+
+            # Find all root-level folders except .git and copy them with full contents
+            for folder in $(find . -maxdepth 1 -type d ! -name '.' ! -name '.git'); do
+              folder_name=$(basename "$folder")
+              echo "Copying folder $folder_name from $CLEAN_BRANCH"
+              cp -r "$folder" "$OUTPUT_DIR/$CLEAN_BRANCH/"
+            done
+          done
+
+          echo "Uploading to Google Drive..."
+          rclone copy "$OUTPUT_DIR" gdrive:github-uploaded-folders --create-dirs
